@@ -1,29 +1,14 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
-const mongoose = require('mongoose');
-
-const MONGO_URI = 'mongodb+srv://himanshu:Himanshu1@cluster0.hlde7tl.mongodb.net/naTours?retryWrites=true&w=majority';
-const BROWSERLESS_WS_ENDPOINT = 'wss://chrome.browserless.io?token=1fd05c25-a668-471c-b1ec-8f8f98a18752';
-
-const ElementSchema = new mongoose.Schema({
-  element: String,
-  recipes: [{
-    ingredient1: String,
-    ingredient2: String,
-    result: String
-  }]
-});
-
-const Element = mongoose.model('Element', ElementSchema);
 
 async function scrapeElements(browser, elements) {
   const page = await browser.newPage();
   await page.goto('https://infinite-craft.gg/recipes/', { waitUntil: 'networkidle0' });
 
+  const results = [];
+
   for (const element of elements) {
     try {
-    //  console.log(`Scraping: ${element[1]} (${element[0]})`);
-
       // Clear the search bar
       await page.click('#search-bar input');
       await page.$eval('#search-bar input', el => el.value = '');
@@ -73,12 +58,11 @@ async function scrapeElements(browser, elements) {
         }));
 
         if (elementInfo) {
-          const elementDoc = new Element({
+          results.push({
             element: elementInfo.element,
             recipes: formattedRecipes
           });
-          await elementDoc.save();
-          console.log(`Saved element ${elementInfo.element} and recipes to MongoDB`);
+          console.log(`Scraped element ${elementInfo.element} and recipes`);
         }
 
       } else {
@@ -91,6 +75,7 @@ async function scrapeElements(browser, elements) {
   }
 
   await page.close();
+  return results;
 }
 
 async function scrapeRecipes() {
@@ -103,26 +88,24 @@ async function scrapeRecipes() {
     return;
   }
 
-  try {
-    await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-    console.log('Connected to MongoDB');
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    return;
-  }
-
-  const browsers = await Promise.all(Array(100).fill().map(() => 
-    puppeteer.connect({ browserWSEndpoint: BROWSERLESS_WS_ENDPOINT })
-  ));
+  // Launch 100 browsers
+  const browsers = await Promise.all(Array(100).fill().map(() => puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] })));
 
   const elements = Object.entries(data).map(([key, value]) => value);
+  // Divide elements into 100 chunks
   const chunkSize = Math.ceil(elements.length / 100);
   const chunks = Array(100).fill().map((_, index) => elements.slice(index * chunkSize, (index + 1) * chunkSize));
 
-  await Promise.all(chunks.map((chunk, index) => scrapeElements(browsers[index], chunk)));
+  const results = await Promise.all(chunks.map((chunk, index) => scrapeElements(browsers[index], chunk)));
 
-  await Promise.all(browsers.map(browser => browser.disconnect()));
-  await mongoose.connection.close();
+  await Promise.all(browsers.map(browser => browser.close()));
+
+  // Flatten the results array
+  const flattenedResults = results.flat();
+
+  // Save results to a local JSON file
+  await fs.writeFile('scraped_results.json', JSON.stringify(flattenedResults, null, 2));
+  console.log('Results saved to scraped_results.json');
 }
 
 scrapeRecipes().catch(console.error);
