@@ -13,7 +13,7 @@ const ElementSchema = new mongoose.Schema({
   }]
 });
 
-const Element = mongoose.model('Hehe-final2', ElementSchema);
+const Element = mongoose.model('Hehe-final3', ElementSchema);
 
 async function scrapeElements(elements, startIndex, browserIndex) {
   let browser;
@@ -36,15 +36,19 @@ async function scrapeElements(elements, startIndex, browserIndex) {
         // Type the new search term
         await page.type('#search-bar input', element[1]);
 
-        const elementHandle = await page.evaluateHandle((icon, name) => {
+        const elementHandle = await page.evaluateHandle((name) => {
+          const cleanText = (text) => text.replace(/[^a-zA-Z]/g, '').toLowerCase();
+          const cleanName = cleanText(name);
+          
           const elements = document.querySelectorAll('.item.item-used');
           for (const el of elements) {
-            if (el.textContent.includes(icon) && el.textContent.includes(name)) {
+            const elText = cleanText(el.textContent);
+            if (elText === cleanName) {
               return el;
             }
           }
           return null;
-        }, element[0], element[1]);
+        }, element[1]);
 
         if (elementHandle) {
           await elementHandle.click();

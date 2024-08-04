@@ -2,7 +2,7 @@ const fs = require('fs');
 
 // Read the JSON files
 const data = JSON.parse(fs.readFileSync('data1.json', 'utf8'));
-const names = JSON.parse(fs.readFileSync('name.json', 'utf8'));
+const names = JSON.parse(fs.readFileSync('names2.json', 'utf8'));
 
 // Log the size of the original data
 console.log('Size of original data:', Object.keys(data).length);
