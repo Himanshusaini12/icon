@@ -16,6 +16,7 @@ const ElementSchema = new mongoose.Schema({
 
 const ElementFinal2 = mongoose.model('Hehe-final2', ElementSchema);
 const ElementFinals = mongoose.model('Hehe-finals', ElementSchema);
+const ElementFinal3 = mongoose.model('Hehe-final3', ElementSchema);
 
 async function fetchAndSaveElementNames() {
   try {
@@ -28,7 +29,7 @@ async function fetchAndSaveElementNames() {
     let processedCount = 0;
     let isFirstBatch = true;
 
-    for (const Model of [ElementFinal2, ElementFinals]) {
+    for (const Model of [ElementFinal2, ElementFinals, ElementFinal3]) {
       let hasMore = true;
       let skip = 0;
 

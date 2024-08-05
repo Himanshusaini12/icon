@@ -16,6 +16,7 @@ const ElementSchema = new mongoose.Schema({
 
 const ElementFinal2 = mongoose.model('Hehe-final2', ElementSchema);
 const ElementFinals = mongoose.model('Hehe-finals', ElementSchema);
+const ElementFinal3 = mongoose.model('Hehe-final3', ElementSchema);
 
 function cleanDocument(doc) {
   const cleanDoc = { ...doc };
@@ -39,7 +40,7 @@ async function fetchAndSaveAllElements() {
     let processedCount = 0;
     let isFirstBatch = true;
 
-    for (const Model of [ElementFinal2, ElementFinals]) {
+    for (const Model of [ElementFinal2, ElementFinals, ElementFinal3]) {
       let hasMore = true;
       let skip = 0;
 
@@ -58,13 +59,13 @@ async function fetchAndSaveAllElements() {
 
         const cleanedBatch = batch.map(cleanDocument);
         const batchJson = cleanedBatch.map(doc => JSON.stringify(doc)).join(',\n');
-        
+
         await fs.appendFile(OUTPUT_FILE, (isFirstBatch ? '' : ',\n') + batchJson, 'utf8');
-        
+
         processedCount += batch.length;
         skip += batch.length;
         console.log(`Processed ${processedCount} documents`);
-        
+
         isFirstBatch = false;
       }
     }
