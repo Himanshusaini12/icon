@@ -15,19 +15,20 @@ const ElementSchema = new mongoose.Schema({
 
 const Element = mongoose.model('Hehe-final3', ElementSchema);
 
-async function scrapeElements(elements, startIndex, browserIndex) {
+async function scrapeElements(elements) {
   let browser;
   let page;
+  let startIndex = 0;
 
-  while (startIndex < elements.length) {
-    try {
-      browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-      page = await browser.newPage();
-      await page.goto('https://infinite-craft.gg/recipes/', { waitUntil: 'networkidle0' });
+  try {
+    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    page = await browser.newPage();
+    await page.goto('https://infinite-craft.gg/recipes/', { waitUntil: 'networkidle0' });
 
-      for (let i = startIndex; i < elements.length; i++) {
-        const element = elements[i];
-        
+    for (let i = startIndex; i < elements.length; i++) {
+      const element = elements[i];
+      
+      try {
         // Clear the search bar
         await page.click('#search-bar input');
         await page.$eval('#search-bar input', el => el.value = '');
@@ -85,29 +86,24 @@ async function scrapeElements(elements, startIndex, browserIndex) {
               recipes: formattedRecipes
             });
             await elementDoc.save();
-            console.log(`Browser ${browserIndex}: Saved element ${elementInfo.element} and recipes to MongoDB (${i + 1}/${elements.length})`);
+            console.log(`Saved element ${elementInfo.element} and recipes to MongoDB (${i + 1}/${elements.length})`);
           }
         } else {
-          console.log(`Browser ${browserIndex}: No results found for ${element[1]} (${element[0]}) (${i + 1}/${elements.length})`);
+          console.log(`No results found for ${element[1]} (${element[0]}) (${i + 1}/${elements.length})`);
         }
-
-        startIndex = i + 1;
+      } catch (error) {
+        console.error(`Encountered an error processing element ${element[1]}:`, error);
+        console.log(`Skipping element ${i + 1} and continuing with the next one`);
       }
-
-      // If we've processed all elements without error, break the while loop
-      break;
-
-    } catch (error) {
-      console.error(`Browser ${browserIndex}: Encountered an error:`, error);
-      console.log(`Browser ${browserIndex}: Skipping element ${startIndex + 1} and restarting from element ${startIndex + 2}`);
-      startIndex++; // Skip the current element
-    } finally {
-      if (page && !page.isClosed()) {
-        await page.close();
-      }
-      if (browser) {
-        await browser.close();
-      }
+    }
+  } catch (error) {
+    console.error('Encountered a critical error:', error);
+  } finally {
+    if (page && !page.isClosed()) {
+      await page.close();
+    }
+    if (browser) {
+      await browser.close();
     }
   }
 }
@@ -131,13 +127,8 @@ async function scrapeRecipes() {
   }
 
   const elements = Object.entries(data).map(([key, value]) => value);
-  const chunkSize = Math.ceil(elements.length / 3);
 
-  await Promise.all([
-    scrapeElements(elements.slice(0, chunkSize), 0, 1),
-    scrapeElements(elements.slice(chunkSize, 2 * chunkSize), 0, 2),
-    scrapeElements(elements.slice(2 * chunkSize), 0, 3)
-  ]);
+  await scrapeElements(elements);
 
   await mongoose.connection.close();
 }
